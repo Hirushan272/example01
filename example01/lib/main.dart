@@ -1,41 +1,54 @@
 import 'dart:async';
 // import 'dart:html';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:example01/models/position_model.dart';
 import 'package:example01/service/database.dart';
+import 'package:example01/service/firebase_service.dart';
 import 'package:example01/service/location_service.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:location/location.dart';
 import 'package:workmanager/workmanager.dart';
 
+import 'firebase_options.dart';
+import 'models/location_model.dart';
+
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
-    List<double> latList = [];
+    List<PositionModel> latList = [];
+    // await Firebase.initializeApp(
+    //   options: DefaultFirebaseOptions.android,
+    // );
     LocationService sf = LocationService();
+    FirebaseDB db = FirebaseDB();
     print("Task Run");
     List<int> list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
     for (var i in list) {
       await Future.delayed(const Duration(minutes: 1));
-      Position ss = await Geolocator.getCurrentPosition();
-      // LocationData? d = await ss.getLocation();
-      // double? ff = ss.getLocationData();
-      latList.add(ss.latitude);
-      print(latList.length);
-      print("TASK$i ${ss.latitude}");
-    }
+      // Position ss = await Geolocator.getCurrentPosition();
+      Position position = await sf.determinePosition();
+      PositionModel model = PositionModel();
+      model.lat = position.latitude;
+      model.long = position.longitude;
+      latList.add(model);
 
+      print("TASK $i ${position.latitude}");
+      print("LENGTH $i ${latList.length}");
+    }
+    await db.addLocationData(latList);
     return Future.value(true);
   });
 }
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Workmanager().initialize(
-    callbackDispatcher, // The top level function, aka callbackDispatcher
-    isInDebugMode: true,
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
   );
-  Workmanager().registerPeriodicTask("task-identifier", "simpleTask");
+
   runApp(const MyApp());
 }
 
@@ -89,6 +102,11 @@ class _MyHomePageState extends State<MyHomePage> {
     database.createDatabase();
     // Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
     // Workmanager().registerOneOffTask("task-identifier", "simpleTask");
+    Workmanager().initialize(
+      callbackDispatcher,
+      isInDebugMode: true,
+    );
+    Workmanager().registerPeriodicTask("task-identifier", "simpleTask");
     super.initState();
   }
 
