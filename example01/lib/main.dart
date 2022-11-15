@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 // import 'dart:html';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -18,12 +19,22 @@ import 'models/location_model.dart';
 @pragma('vm:entry-point')
 void callbackDispatcher() {
   Workmanager().executeTask((task, inputData) async {
+    DatabaseService dbs = DatabaseService();
+    LocationModel? locat = LocationModel();
     List<PositionModel> latList = [];
+
+    locat = await dbs.readLocationData();
     // await Firebase.initializeApp(
     //   options: DefaultFirebaseOptions.android,
     // );
+    if (locat == null || locat.location == null) {
+      latList = [];
+      locat = LocationModel(location: []);
+    } else {
+      latList = locat.location!;
+    }
     LocationService sf = LocationService();
-    FirebaseDB db = FirebaseDB();
+    // FirebaseDB db = FirebaseDB();
     print("Task Run");
     List<int> list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13];
     for (var i in list) {
@@ -38,7 +49,10 @@ void callbackDispatcher() {
       print("TASK $i ${position.latitude}");
       print("LENGTH $i ${latList.length}");
     }
-    await db.addLocationData(latList);
+    locat.location = latList;
+    dbs.saveDataLocally(locat);
+    print("Task Return");
+    // await db.addLocationData(latList);
     return Future.value(true);
   });
 }
@@ -48,7 +62,6 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
   runApp(const MyApp());
 }
 
@@ -63,7 +76,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'Location Data'),
     );
   }
 }
@@ -78,28 +91,44 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
+  bool isLoading = false;
   LocationService locationService = LocationService();
+  FirebaseDB db = FirebaseDB();
+  List<PositionModel> latList = [];
+  LocationModel? locationData = LocationModel();
+  final DatabaseService database = DatabaseService();
 
-  Future<void> getLocation() async {
-    await locationService.getLocation();
-    await locationService.determinePosition();
-  }
-
-  void _incrementCounter() {
+  void loadingOn() {
     setState(() {
-      _counter++;
+      isLoading = true;
     });
   }
 
-  final DatabaseService database = DatabaseService();
+  void loadingOff() {
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  Future<void> fetchLocationData() async {
+    loadingOn();
+    locationData = await database.readLocationData();
+    loadingOff();
+  }
+
+  Future<void> getLocation() async {
+    loadingOn();
+    await locationService.getLocation();
+    await locationService.determinePosition();
+    locationData = await database.readLocationData();
+    loadingOff();
+  }
 
   @override
   void initState() {
     getLocation();
 
-    database.createDatabase();
+    // database.createDatabase();
     // Workmanager().initialize(callbackDispatcher, isInDebugMode: true);
     // Workmanager().registerOneOffTask("task-identifier", "simpleTask");
     Workmanager().initialize(
@@ -112,28 +141,54 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+      body: SizedBox(
+        width: size.width,
+        height: size.height * 0.8,
+        child: SingleChildScrollView(
+          child: isLoading == true
+              ? const Center(
+                  heightFactor: 40, child: CircularProgressIndicator())
+              : locationData == null || locationData?.location == null
+                  ? const Center(
+                      heightFactor: 40, child: Text("No Location Data"))
+                  : SizedBox(
+                      width: size.width,
+                      height: size.height * 0.8,
+                      child: ListView.builder(
+                          itemCount: locationData?.location?.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  Text(
+                                      "lat: ${locationData?.location![index].lat}"),
+                                  Text(
+                                      "long: ${locationData?.location![index].long}"),
+                                ],
+                              ),
+                            );
+                          }),
+                    ),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: () async {
+          // await db.addLocationData(latList);
+          database.removeValues();
+          // database.readLocationData();
+          await fetchLocationData();
+        },
         tooltip: 'Increment',
-        child: const Icon(Icons.add),
+        backgroundColor: Colors.red,
+        child: const Icon(Icons.delete),
       ),
     );
   }

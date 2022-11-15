@@ -27,7 +27,7 @@ class LocationModel {
     return LocationModel(
       location: map['location'] != null
           ? List<PositionModel>.from(
-              map['location']?.map((x) => PositionModel.fromMap(x)))
+              map['location']?.map((x) => PositionModel.fromMap(x))).toList()
           : null,
     );
   }
@@ -36,6 +36,10 @@ class LocationModel {
 
   factory LocationModel.fromJson(String source) =>
       LocationModel.fromMap(json.decode(source));
+
+  static LocationModel decode(String topic) => (json.decode(topic) as dynamic)
+      .map<LocationModel>((item) => LocationModel.fromJson(item))
+      .toList();
 
   @override
   String toString() => 'LocationModel(location: $location)';
