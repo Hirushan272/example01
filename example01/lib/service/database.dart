@@ -17,10 +17,10 @@ class DatabaseService {
     _database = await openDatabase(path);
   }
 
-  void saveDataLocally(LocationModel locations) async {
+  Future<void> saveDataLocally(LocationModel locations) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     final value = locations.toJson();
-    prefs.setString('locations', value.toString());
+    await prefs.setString('locations', value.toString());
   }
 
   Future<LocationModel?> readLocationData() async {
@@ -29,8 +29,6 @@ class DatabaseService {
     try {
       String? value = prefs.getString("locations");
       if (value != null) {
-        final v = json.decode(value);
-
         LocationModel locationData = LocationModel.fromJson(value);
 
         return locationData;

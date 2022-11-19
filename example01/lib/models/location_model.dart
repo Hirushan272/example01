@@ -5,21 +5,26 @@ import 'package:example01/models/position_model.dart';
 
 class LocationModel {
   List<PositionModel>? location;
+  DateTime? time;
   LocationModel({
     this.location,
+    this.time,
   });
 
   LocationModel copyWith({
     List<PositionModel>? location,
+    DateTime? time,
   }) {
     return LocationModel(
       location: location ?? this.location,
+      time: time ?? this.time,
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'location': location?.map((x) => x.toMap()).toList(),
+      'time': time?.millisecondsSinceEpoch,
     };
   }
 
@@ -27,7 +32,10 @@ class LocationModel {
     return LocationModel(
       location: map['location'] != null
           ? List<PositionModel>.from(
-              map['location']?.map((x) => PositionModel.fromMap(x))).toList()
+              map['location']?.map((x) => PositionModel.fromMap(x)))
+          : null,
+      time: map['time'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['time'])
           : null,
     );
   }
@@ -42,16 +50,18 @@ class LocationModel {
       .toList();
 
   @override
-  String toString() => 'LocationModel(location: $location)';
+  String toString() => 'LocationModel(location: $location, time: $time)';
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     final listEquals = const DeepCollectionEquality().equals;
 
-    return other is LocationModel && listEquals(other.location, location);
+    return other is LocationModel &&
+        listEquals(other.location, location) &&
+        other.time == time;
   }
 
   @override
-  int get hashCode => location.hashCode;
+  int get hashCode => location.hashCode ^ time.hashCode;
 }
